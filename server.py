@@ -2,9 +2,10 @@
 from ast import keyword
 from operator import is_not
 from unittest import mock
-from flask import Flask
+from flask import Flask, request
 import json
 from mockdata import mock_catalog
+from config import db
 
 
 app = Flask('server')
@@ -36,12 +37,34 @@ def about():
 
 @app.route("/api/catalog")
 def get_catalog():
-    return json.dumps(mock_catalog)
+    cursor = db.products.find({})
+    all_products = []
+
+    for prod in cursor:
+        prod["_id"] = str(prod["_id"])
+        all_products.append(prod)
+
+    return json.dumps(all_products)
+
+@app.route("/api/catalog", methods=["post"])
+def save_product():
+    product = request.get_json()
+    db.products.insert_one(product)
+
+    print("product saved")
+    print(product)
+
+    product["_id"] = str(product["_id"])
+
+    return json.dumps(product)
 
 @app.route("/api/catalog/cheapest")
 def cheapest_catalog():
-    solution = mock_catalog[0]
-    for prod in mock_catalog:
+    cursor = db.products.find({})
+
+    solution = cursor[0]
+    for prod in cursor:
+        prod["_id"] = str(prod["_id"])
         # print(prod["title"])
 
         if prod["price"]< solution["price"]:
@@ -52,8 +75,10 @@ def cheapest_catalog():
 #sum of all prices in catalog
 @app.route("/api/catalog/total")
 def total_catalog():
+    cursor = db.products.find({})
+
     total = 0
-    for x in mock_catalog:
+    for x in cursor:
         total += x["price"]
     
     return json.dumps(total)
