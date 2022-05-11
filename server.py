@@ -2,10 +2,11 @@
 from ast import keyword
 from operator import is_not
 from unittest import mock
-from flask import Flask, request
+from flask import Flask, request, abort
 import json
 from mockdata import mock_catalog
 from config import db
+from bson import ObjectId
 
 
 app = Flask('server')
@@ -86,16 +87,20 @@ def total_catalog():
 #find a prodct based on the unique id
 @app.route("/api/products/<id>")
 def find_product(id):
-   for prod in mock_catalog:
-        if id == prod["_id"]:
-            
-            return json.dumps(prod)
+    prod = db.products.find_one({"_id": ObjectId(id)})
+    prod["_id"] = str(prod["_id"])
+
+    return json.dumps(prod)
+
+
 
 #get the list of categories from the catalog
 @app.route("/api/products/categories")
 def find_categories():
+    cursor = db.products.find({})
     categories = []
-    for prod in mock_catalog:
+
+    for prod in cursor:
         cat = prod["category"]
         if cat not in categories:
             categories.append(cat)
@@ -106,9 +111,12 @@ def find_categories():
 @app.route("/api/products/categories/<cat_name>")
 def nike_category(cat_name):
     results = []
-    for prod in mock_catalog:
-        if prod["category"].lower() == cat_name.lower():
-            results.append(prod)
+    cursor = db.products.find({"category": cat_name})
+
+    for prod in cursor:
+        prod["_id"] = str(prod["_id"])
+        results.append(prod)
+
 
     
     return json.dumps(results)
@@ -126,6 +134,51 @@ def search_category(text):
             results.append(prod)
     
     return json.dumps(results)
+
+
+#######################################
+############ Coupon Codes #############
+#######################################
+
+@app.route("/api/couponCodes", methods=["post"])
+def save_coupon():
+    coupon = request.get_json()
+    db.coupons.insert_one(coupon)
+
+    if not "couponCode" in coupon or len(coupon["couponCode"]) < 5:
+        return abort(400, "Code is required and must contain at least 5 characters.")
+
+    if not "discount" in coupon or type(coupon["discount"]) != type(int) or type(coupon["discount"]) != type(float): 
+        return abort(400, "Discount is required and should be a valid number")
+
+    if coupon["discount"] > 35 or coupon["discount"] < 0:
+        return abort(400, "Discount must be between 1-35%")
+
+
+    coupon["_id"] = str(coupon["_id"])
+
+    return json.dumps(coupon)
+
+@app.route("/api/couponCodes")
+def get_coupon():
+    cursor = db.coupons.find({})
+    all_coupons = []
+
+    for coupon in cursor:
+        coupon["_id"] = str(coupon["_id"])
+        all_coupons.append(coupon)
+
+    return json.dumps(all_coupons)
+
+@app.route("/api/couponCodes/<id>")
+def find_coupon(id):
+    coupon = db.coupons.find_one({"_id": ObjectId(id)})
+    if not coupon:
+        return abort(400, "Invalid Coupon ID")
+
+    coupon["_id"] = str(coupon["_id"])
+
+    return json.dumps(coupon)
 
 #start the server
 app.run(debug=True)
