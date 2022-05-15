@@ -56,7 +56,7 @@ def save_product():
     db.products.insert_one(product)
 
    
-    if not "title" in product or len(product["title"]) < 6:
+    if not "title" in product or len(product["title"]) < 5:
         return abort (400, "Title must be at least 5 characters")
 
     if type(product["title"]) != str:
@@ -174,7 +174,7 @@ def save_coupon():
     coupon = request.get_json()
     db.coupons.insert_one(coupon)
 
-    if not "couponCode" in coupon or len(coupon["couponCode"]) < 5 or type(coupon["couponCode"]) != type(str):
+    if not "couponCode" in coupon or len(coupon["couponCode"]) < 5:
         return abort(400, "Code is required and must contain at least 5 characters.")
 
 
